@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mvc="http://www.springframework.org/schema/mvc"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+       http://www.springframework.org/schema/context
+       https://www.springframework.org/schema/context/spring-context.xsd
+       http://www.springframework.org/schema/mvc
+       https://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+<!--    声明组件扫描器-->
+    <context:component-scan base-package="org.example.controller"/>
+
+<!--    声明springmvc框架中的视图解析器，帮助开发人员设置视图文件的路径-->
+    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+<!--        前缀：视图文件的路径-->
+        <property name="prefix" value="/WEB-INF/view/"/>
+<!--        后缀：视图文件的拓展名-->
+        <property name="suffix" value=".jsp"/>
+    </bean>
+
+<!--    没有注解驱动，只实例化了消息转换器中的四个实现类
+        加载了注解驱动，实例化了消息转换器中的八个实现类
+        其中就包括：org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
+        default-servlet-handler 和 @RequestMapping 注解 有冲突
+        需要加入annotation-driven 解决问题-->
+    <mvc:annotation-driven/>
+<!--    第一种处理静态资源的方式
+        需要在springmvc配置文件加入<mvc:default-servlet-handler>
+        原理是：你加入这个标签后，框架会创建一个控制器对象DefaultServletHttpRequestHandler
+        就是类似我们自己创建的MyController
+        DefaultServletHttpRequestHandler这个对象可以把接收的请求转发给tomcat的default这个servlet
+        内部就是一个请求转发 request.getRequestDispatcher("servlet/jsp地址").forward(request,response)
+        这个是运用框架实现的
+        这是使用框架之后的mvc设计模式，所有的请求都要经过框架才能映射处理方法-->
+    <mvc:default-servlet-handler/>
+<!--    最后，对静态资源的访问由中央调度器转发给DefaultServletHttpRequestHandler控制器对象，再转发给tomcat的default servlet
+             对动态资源的访问由中央调度器转发给MyController及其他自定义控制器对象下的对应方法-->
+</beans>

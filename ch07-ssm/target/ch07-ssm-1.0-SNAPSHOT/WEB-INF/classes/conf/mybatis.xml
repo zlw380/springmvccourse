@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+<!--    <settings>
+        <setting name="logImpl" value="STDOUT_LOGGING"/>
+    </settings>-->
+
+    <!--    设置别名-->
+    <typeAliases>
+<!--        不是实体类的包名也可以-->
+        <package name="org.example.domain"/>
+    </typeAliases>
+
+    <mappers>
+        <!-- 告诉 mybatis 要执行的 sql 语句的位置
+        使用package标签的要求
+        1.mapper文件名称和dao接口名必须完全一样，区分大小写
+        2.mapper文件和dao接口必须在同一目录-->
+        <package name="org.example.dao"/>
+    </mappers>
+
+</configuration>
