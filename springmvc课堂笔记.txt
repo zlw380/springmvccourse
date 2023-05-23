@@ -1,0 +1,377 @@
+SpringMVC：是基于spring的一个框架， 实际上就是spring的一个模块， 专门是做web开发的。
+           理解是servlet的一个升级
+
+	   web开发底层是servlet ， 框架是在servlet基础上面加入一些功能，让你做web开发方便。
+
+SpringMVC就是一个Spring。 Spring是容器，ioc能够管理对象，使用<bean>, @Component, @Repository, @Service, @Controller
+  SpringMVC能够创建对象， 放入到容器中（SpringMVC容器）， springmvc容器中放的是控制器对象，
+
+  我们要做的是 使用@Contorller创建控制器对象， 把对象放入到springmvc容器中， 把创建的对象作为控制器使用
+  这个控制器对象能接收用户的请求， 显示处理结果，就当做是一个servlet使用。
+
+  使用@Controller注解创建的是一个普通类的对象， 不是Servlet。 springmvc赋予了控制器对象一些额外的功能。
+
+
+  web开发底层是servlet， springmvc中有一个对象是Servlet ： DispatherServlet(中央调度器)
+  DispatherServlet: 负责接收用户的所有请求， 用户把请求给了DispatherServlet， 之后DispatherServlet把请求转发给
+                    我们的Controller对象， 最后是Controller对象处理请求。
+
+		   
+
+   
+
+  index.jsp-----DispatherServlet(Servlet)----转发，分配给---Controller对象（@Controller注解创建的对象）
+  main.jsp                                                   MainController
+  addUser.jsp                                                UserController
+
+
+
+---------------------------------------------------------------------------------------------------------
+
+springmvc请求的处理流程
+
+ 1）发起some.do
+ 2）tomcat(web.xml--url-pattern知道 *.do的请求给DispatcherServlet)
+ 3）DispatcherServlet（根据springmvc.xml配置知道 some.do---doSome()）
+ 4）DispatcherServlet把some.do转发个MyController.doSome()方法
+ 5）框架执行doSome（）把得到ModelAndView进行处理， 转发到show.jsp
+
+
+上面的过程简化的方式
+  some.do---DispatcherServlet---MyController
+--------------------------------------------------------------------------------------------------------
+springmvc执行过程源代码分析
+1. tomcat启动，创建容器的过程
+   通过load-on-start标签指定的1，创建DisaptcherServlet对象， 
+   DisaptcherServlet它的父类是继承HttpServlet的， 它是一个serlvet， 在被创建时，会执行init（）方法。
+   在init（）方法中
+   //创建容器，读取配置文件
+    WebApplicationContext ctx = new ClassPathXmlApplicationContext("springmvc.xml");
+    //把容器对象放入到ServletContext中
+    getServletContext().setAttribute(key, ctx);
+
+  上面创建容器作用： 创建@controller注解所在的类的对象， 创建MyController对象，
+   这个对象放入到 springmvc的容器中， 容器是map ， 类似 map.put("myController",MyController对象)
+
+
+2.请求的处理过程
+  1）执行servlet的service()
+       protected void service(HttpServletRequest request, HttpServletResponse response)
+
+       protected void doService(HttpServletRequest request, HttpServletResponse response)
+
+
+      DispatcherServlet.doDispatch(request, response){
+
+          调用MyController的.doSome()方法
+      }
+
+   doDispatch：springmvc中DispatcherServlet的核心方法， 所有的请求都在这个方法中完成的。
+
+
+
+没有加入注解驱动标签时的状态
+org.springframework.http.converter.ByteArrayHttpMessageConverter 
+org.springframework.http.converter.StringHttpMessageConverter
+org.springframework.http.converter.xml.SourceHttpMessageConverter
+org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter
+
+
+加入注解驱动标签时的状态
+org.springframework.http.converter.ByteArrayHttpMessageConverter
+org.springframework.http.converter.StringHttpMessageConverter
+org.springframework.http.converter.ResourceHttpMessageConverter
+org.springframework.http.converter.ResourceRegionHttpMessageConverter
+org.springframework.http.converter.xml.SourceHttpMessageConverter 
+org.springframework.http.converter.support.AllEncompassingFormHttpMessageConverter 
+org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter
+org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
+
+==========================================================================
+发起的请求是由哪些服务器程序处理的。
+
+http://localhost:8080/ch05_url_pattern/index.jsp ：tomcat（jsp会转为servlet）
+直接向响应对象注入jsp文件内静态资源，包括js文件，图片 并发送给浏览器
+http://localhost:8080/ch05_url_pattern/js/jquery-3.4.1.js ： tomcat
+http://localhost:8080/ch05_url_pattern/images/p1.jpg ： tomcat
+http://localhost:8080/ch05_url_pattern/html/test.html： tomcat
+http://localhost:8080/ch05_url_pattern/some.do ：  DispatcherServlet（springmvc框架处理的）
+
+
+tomcat本身能处理静态资源的访问， 像html， 图片， js文件都是静态资源
+
+
+tomcat的web.xml文件有一个servlet 名称是 default ， 在服务器启动时创建的。
+ <servlet>
+        <servlet-name>default</servlet-name>
+        <servlet-class>org.apache.catalina.servlets.DefaultServlet</servlet-class>
+        <init-param>
+            <param-name>debug</param-name>
+            <param-value>0</param-value>
+        </init-param>
+        <init-param>
+            <param-name>listings</param-name>
+            <param-value>false</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+ </servlet>
+
+ <servlet-mapping>
+        <servlet-name>default</servlet-name>
+        <url-pattern>/</url-pattern>  "/"表示静态资源和未映射的请求都这个default处理
+ </servlet-mapping>
+
+
+default这个servlet作用： 
+The default servlet for all web applications, that serves static  
+resources.  It processes all requests that are not mapped to other  
+servlets with servlet mappings (defined either here or in your own   
+web.xml file).
+
+1.处理静态资源
+2.处理未映射到其它servlet的请求。
+静态资源默认交给default servlet来渲染
+一般不需要手动把静态资源注入自定义servlet的响应对象输出流
+(当然，你不做请求转发然后手动在自定义servlet的PrintWriter out里手打html标签也可以)
+
+========================================================================
+在jsp ， html中使用的地址， 都是在前端页面中的地址，都是相对地址
+
+地址分类：
+ 1.绝对地址 ， 带有协议名称的是绝对地址，  http://www.baidu.com , ftp://202.122.23.1
+ 2.相对地址， 没有协议开头的， 例如 user/some.do  , /user/some.do
+              相对地址不能独立使用，必须有一个参考地址。 通过参考地址+相对地址本身才能指定资源。
+
+				  张三同学， 1班有张三， 2班也有张三
+
+ 3.参考地址
+	1） 在你的页面中的，访问地址不加 "/"
+
+	访问的是： http://localhost:8080/ch06_path/index.jsp
+	路径： http://localhost:8080/ch06_path/
+	资源： index.jsp
+
+	在index.jsp发起 user/some.do请求，访问地址变为 http://localhost:8080/ch06_path/user/some.do
+	当你的地址 没有斜杠开头,例如 user/some.do , 当你点击链接时， 访问地址是当前页面的地址
+	加上链接的地址。
+	http://localhost:8080/ch06_path/ + user/some.do
+
+
+     -------------------------------------------------------------
+     	但是不加斜杠有时就会出现问题，比如当处理请求后返回当前视图的时候：
+	控制器方法设置返回/index.jsp  
+	这时第一次提交访问请求 user/some.do
+	返回后现在的地址： http://localhost:8080/ch06_path/user/some.do
+
+	http://localhost:8080/ch06_path/user/some.do
+	路径：http://localhost:8080/ch06_path/user/
+	资源：some.do
+	现在还是正常的
+
+	但是在index.jsp中第二次提交访问请求 user/some.do 时，当你点击链接时，访问地址是当前页面的地址
+	加上链接的地址
+	就变为 http://localhost:8080/ch06_path/user/user/some.do
+	路径：http://localhost:8080/ch06_path/user/user
+	资源：some.do
+	拼接到一起去请求就会404了
+
+	解决方案：
+	1.加入${pageContext.request.contextPath}
+	2.加入一个base标签， 是html语言中的标签。 表示当前页面中访问地址的基地址。
+	  你的页面中所有 没有“/”开头的地址，都是以base标签中的地址为参考地址
+	使用base中的地址 + user/some.do 组成访问地址
+
+
+
+
+	2）在你的页面中的，访问地址加 "/"
+	访问的是： http://localhost:8080/ch06_path/index.jsp
+	路径： http://localhost:8080/ch06_path/
+	资源： index.jsp
+
+	点击 /user/some.do, 访问地址变为 http://localhost:8080/user/some.do
+	参考地址是 你的服务器地址， 也就是 http://localhost:8080
+
+
+	如果你的资源不能访问： 加入${pageContext.request.contextPath} EL表达式
+	代表了项目的访问路径，可以在斜杠前面把项目名加上
+	<a href="${pageContext.request.contextPath}/user/some.do">发起user/some.do的get请求</a>
+	这样就能解决路径的访问问题了
+
+	
+
+index.jsp--addStudent.jsp---student/addStudent.do( service的方法，调用dao的方法)--result.jsp
+
+=======================================================================================================
+
+ch08-forard-redirect:转发和重定向
+
+forward：表示转发
+redirect：表示重定向
+forward和redirect都是关键字， 有一个共同的特点不和视图解析器一同工作
+
+
+扩展：
+forward和redirect他们都可以访问 视图文件，比如某个jsp ，html
+ forward:/hello.jsp  forward:/main.html
+
+forward和redirect他们都可以访问其它的controller
+ forward:/some.do , redirect:/other.do
+
+处理器方法可以返回ModelAndView, String , void 都可以使用forward，redirect
+    
+============================================================================================
+异常处理：
+springmvc框架采用的是统一，全局的异常处理。
+把controller中的所有异常处理都集中到一个地方。 采用的是aop的思想。把业务逻辑和异常处理代码分开。解耦合。
+
+使用两个注解
+1.@ExceptionHandler
+2.@ControllerAdvice
+
+
+
+拦截器：
+1）拦截器是springmvc中的一种，需要实现HandlerInterceptor接口。
+2）拦截器和过滤器类似，功能方向侧重点不同。 过滤器是用来过滤器请求参数，设置编码字符集等工作。
+    拦截器是拦截用户的请求，做请求做判断处理的。
+3）拦截器是全局的，可以对多个Controller做拦截。 
+   一个项目中可以有0个或多个拦截器， 他们在一起拦截用户的请求。
+	拦截器常用在：用户登录处理，权限检查， 记录日志。
+
+拦截器的使用步骤：
+ 1.定义类实现HandlerInterceptor接口
+ 2.在springmvc配置文件中，声明拦截器， 让框架知道拦截器的存在。
+
+拦截器的执行时间：
+  1）在请求处理之前， 也就是controller类中的方法执行之前先被拦截。
+  2）在控制器方法执行之后也会执行拦截器。
+  3）在请求处理完成后也会执行拦截器。
+
+
+拦截器：看做是多个Controller中公用的功能，集中到拦截器统一处理。使用的aop的思想
+
+=================================================================================
+多个拦截器：
+第一个拦截器preHandle=true , 第二个拦截器preHandle=true 
+
+111111-拦截器的MyInterceptor的preHandle()
+22222-拦截器的MyInterceptor的preHandle()
+=====执行MyController中的doSome方法=====
+22222-拦截器的MyInterceptor的postHandle()
+111111-拦截器的MyInterceptor的postHandle()
+22222-拦截器的MyInterceptor的afterCompletion()
+111111-拦截器的MyInterceptor的afterCompletion()
+
+---------------------------------------------------
+第一个拦截器preHandle=true , 第二个拦截器preHandle=false
+
+111111-拦截器的MyInterceptor的preHandle()
+22222-拦截器的MyInterceptor的preHandle()
+111111-拦截器的MyInterceptor的afterCompletion()
+
+----------------------------------------------------------
+第一个拦截器preHandle=false , 第二个拦截器preHandle=true|false
+
+111111-拦截器的MyInterceptor的preHandle()
+
+
+====================================================================
+拦截器和过滤器的区别
+
+1.过滤器是servlet中的对象，  拦截器是框架中的对象
+2.过滤器实现Filter接口的对象， 拦截器是实现HandlerInterceptor
+3.过滤器是用来设置request，response的参数，属性的，侧重对数据过滤的。
+  拦截器是用来验证请求的，能截断请求。
+4.过滤器是在拦截器之前先执行的。
+5.过滤器是tomcat服务器创建的对象
+  拦截器是springmvc容器中创建的对象
+6.过滤器是一个执行时间点。
+  拦截器有三个执行时间点
+7.过滤器可以处理jsp，js，html等等
+  拦截器是侧重拦截对Controller的对象。 如果你的请求不能被DispatcherServlet接收， 这个请求不会执行拦截器内容
+8.拦截器拦截普通类(Controller)方法执行，过滤器过滤servlet请求和响应
+
+===========================================================================
+
+servlet对象，包括处理静态资源的defaultServlet，处理jsp文件的servlet，开发者自定义的servlet，
+还有请求对象request，响应对象response，
+以及过滤器，监听器，springmvc框架的中央调度器对象，都是由Tomcat服务器创建的。
+
+这些对象有些是Tomcat自动创建的，（request，response在接收浏览器请求时被自动创建
+defaultServlet也会在Tomcat服务器启动时被自动创建）
+有些是在web.xml中手动配置的，（监听器，过滤器，中央调度器）
+有些是在开发环境中的Servlet类中自定义的（开发者用来调用业务逻辑层的servlet）
+
+Tomcat服务器通过创建这些对象并调用这些对象中的方法，实现对浏览器请求的处理。
+
+Web应用通过实现Servlet接口，在Servlet的实现类中添加业务逻辑代码。
+这些业务代码可以被Web服务器动态加载并执行，从而完成客户的请求。
+Tomcat负责接收和解析客户的请求，并把客户的请求发送给相应的Servlet，
+Servlet执行完业务逻辑后，返回值再交由Tomcat返回给客户端。
+
+================================================================================
+
+springmvc内部请求的处理流程：也就是springmvc接收请求，到处理完成的过程
+1.用户发起请求some.do
+
+2.DispatcherServlet接收请求some.do，把请求转交给处理器映射器
+  处理器映射器：springmvc框架中的一种对象，框架把实现了HandlerMapping接口的类都叫做映射器（多个）
+  HandlerExecutionChain getHandler(HttpServletRequest var1) throws Exception;
+  根据request请求对象中封装的请求找到对应的处理器对象并封装到HandlerExecutionChain中，再返回HandlerExecutionChain。
+
+  处理器映射器作用：
+  1）根据请求，从springmvc容器对象中获取处理器对象
+  相当于MyController controller = （MyController）ctx.getBean（“some.do”）；
+  相当于spring框架中的 StudentService service = （StudentService）ctx.getBean（“service”）；
+  获取spring容器中的service对象
+  2）处理器映射器把找到的处理器对象放到一个叫做处理器执行链的类中保存：HandlerExecutionChain
+
+  HandlerExecutionChain类中保存着 1.处理器对象（MyController）
+				   2.项目中所有的拦截器List<HandlerInterceptor> interceptorList
+  该类中保存处理器对象引用的属性是private final Object handler，这是一个被final修饰的引用数据类型，
+  只能指向一个处理器对象，因此在HandlerExecutionChain类被实例化后，只会对应一个处理器对象。
+  这样，通过处理器执行链对象（多个）就可以使用到处理器对象以及拦截器对象
+  3）最后处理器映射器把处理器执行链对象返回中央调度器
+
+3.DispatcherServlet把2中的处理器执行链对象中的处理器对象交给了处理器适配器对象（多个）
+  
+  处理器适配器：是springmvc框架中的对象，需要实现HandlerAdapter接口。
+  ModelAndView handle(HttpServletRequest var1, HttpServletResponse var2, Object var3) throws Exception;
+  传入request请求对象、response应答对象、处理器对象，执行处理器方法后返回ModelAndView。
+
+  处理器适配器作用：执行处理器方法（调用MyController的doSome（）方法，得到返回值ModelAndView）
+  		     并将返回的ModelAndView对象交给中央调度器
+
+4.DispatcherServlet把3中获取的ModelAndView交给了视图解析器对象
+  视图解析器：是springmvc中的对象，需要实现ViewResolver接口（可以有多个）
+
+  视图解析器作用：组成视图完整路径，使用前缀、后缀，组成完整路径。并创建一个View接口的实现类对象。
+  不论ModelAndView中返回的视图路径是不是完整路径，都需要经过视图解析器处理。
+  View是一个接口，表示视图的，在框架中jsp、html不是字符串String表示的，而是使用View和它的实现类表示视图。
+  如在处理器方法中实现重定向:
+  mv.setViewName("redirect:/a.jsp"); 和
+  mv.setView(new RedirectView("/a.jsp")); 的作用是一样的
+
+  用setViewName方法是设置视图路径并声明进行重定向操作，
+  后面根据视图路径字符串创建View实现类对象的工作由框架（视图解析器）完成
+
+  用setView方法就是直接设置要返回的视图，手动创建View的实现类RedirectView的对象，
+  相当于用表示视图路径的字符串创建RedirectView对象。
+  但这是重定向操作，只会把包含要重定向到的jsp路径（"/a.jsp"）的RedirectView对象返回给中央调度器，
+  并由中央调度器将要重定向到的jsp路径（"/a.jsp"）装入response响应对象，不进行渲染操作。
+
+  当然在springmvc框架中：
+  1.框架会把Model中的简单类型数据，转为String使用，作为重定向到的jsp页面的get请求参数使用
+  目的是在这两次请求之间可以传递数据
+  2.在目标页面可以使用参数集合对象${param}获取请求参数值，如${param.myname}
+
+  InternalResourceView：视图类，表示jsp文件,视图解析器会创建InternalResourceView类对象。
+  这个就是要转发到的jsp文件的视图对象
+  这个对象的里面，有一个属性叫url = /WEB-INF/view/show.jsp 表示需要把哪个jsp页面编译成servlet
+  该视图对象会被视图解析器返回给中央调度器
+  再由中央调度器调用这个视图对象的方法对jsp页面进行渲染
+
+5.DispatcherServlet把4步骤中创建的View对象获取到，调用View类自己的方法，
+  把Model数据放入到request作用域，执行对象视图的forward，
+  再把视图渲染为静态页面(html)装入response响应对象返回给浏览器，请求结束。
